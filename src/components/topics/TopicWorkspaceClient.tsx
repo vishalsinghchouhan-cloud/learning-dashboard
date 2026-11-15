@@ -86,7 +86,13 @@ export default function TopicWorkspaceClient({ id }: { id: string }) {
         </header>
 
         <ResourceSection topicId={id} resources={resources} onAdded={loadWorkspace} />
-        <FlashcardSection topicId={id} flashcards={flashcards} onAdded={loadWorkspace} />
+        <FlashcardSection
+          topicId={id}
+          topicTitle={topic?.title}
+          initialScratchpad={topic?.scratchpadNotes || ""}
+          flashcards={flashcards}
+          onAdded={loadWorkspace}
+        />
         {topic?.roadmapId && (
           <QuizScoreSection
             roadmapId={topic.roadmapId}

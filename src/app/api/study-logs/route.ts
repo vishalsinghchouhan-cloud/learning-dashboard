@@ -2,24 +2,26 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import StudyLog from "@/models/StudyLog";
 
-// Helper: Calculate consecutive daily study streak
 function calculateStreak(dates: Date[]): number {
   if (dates.length === 0) return 0;
 
   const uniqueDays = Array.from(
     new Set(dates.map((d) => new Date(d).toISOString().split("T")[0]))
-  ).sort((a, b) => (a > b ? -1 : 1)); // Descending
+  ).sort((a, b) => (a > b ? -1 : 1)); // Sort newest to oldest
 
   const today = new Date().toISOString().split("T")[0];
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
 
+  // If the most recent study log wasn't today or yesterday, streak is broken
   if (uniqueDays[0] !== today && uniqueDays[0] !== yesterday) return 0;
 
   let streak = 1;
   for (let i = 0; i < uniqueDays.length - 1; i++) {
     const curr = new Date(uniqueDays[i]).getTime();
     const next = new Date(uniqueDays[i + 1]).getTime();
-    if (Math.round((curr - next) / 86400000) === 1) {
+    const diffDays = Math.round((curr - next) / 86400000);
+
+    if (diffDays === 1) {
       streak++;
     } else {
       break;
@@ -27,6 +29,7 @@ function calculateStreak(dates: Date[]): number {
   }
   return streak;
 }
+
 
 export async function GET(req: Request) {
   try {

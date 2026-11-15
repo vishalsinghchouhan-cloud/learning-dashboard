@@ -1,20 +1,12 @@
 "use client"
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Flame, Clock, BookOpen, Brain, Plus, ArrowRight } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  CartesianGrid,
-} from "recharts";
 import LogStudyModal from "@/components/LogStudyModal";
 import ReviewQueue from "@/components/ReviewQueue";
 import WeeklyReviewSection from "@/components/WeeklyReviewSection";
+import StreakHeatmap from "@/components/StreakHeatmap";
+import StudyHoursChart from "@/components/StudyHoursChart";
 
 export default function MainDashboard() {
   const [roadmaps, setRoadmaps] = useState<any[]>([]);
@@ -162,45 +154,10 @@ export default function MainDashboard() {
             </div>
           </article>
         </section>
+      <StreakHeatmap studyLogs={studyLogs} streak={streak} />
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <article className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <header className="mb-6">
-              <h2 className="text-lg font-semibold">Expected vs. Consumed Study Hours</h2>
-              <p className="text-xs text-slate-400">
-                Compare estimated topic hours against your actual logged time
-              </p>
-            </header>
-
-            {chartData.length === 0 ? (
-              <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-sm border border-dashed border-slate-800 rounded-lg">
-                <p>No topics added yet.</p>
-                <Link href="/roadmaps" className="text-indigo-400 hover:underline mt-2">
-                  Create or import a roadmap to see your chart →
-                </Link>
-              </div>
-            ) : (
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
-                    <YAxis stroke="#94a3b8" fontSize={12} unit="h" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0f172a",
-                        borderColor: "#334155",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Legend />
-                    <Bar dataKey="Expected" fill="#475569" />
-                    <Bar dataKey="Consumed" fill="#6366f1" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </article>
+         <StudyHoursChart roadmaps={roadmaps} topics={topics} studyLogs={studyLogs} />
 
           <ReviewQueue
             dueCards={dueCards}

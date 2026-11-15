@@ -14,6 +14,7 @@ export interface ITopic extends Document {
   estimatedHours: number;
   status: "Not Started" | "In Progress" | "Completed";
   subtopics: ISubtopic[];
+  scratchpadNotes?: string;
   reflection?: {
     learnedTakeaway?: string;
     struggledWith?: string;
@@ -49,6 +50,7 @@ const TopicSchema = new Schema<ITopic>(
       default: "Not Started",
     },
     subtopics: [SubtopicSchema],
+    scratchpadNotes: { type: String, default: "" },
     reflection: {
       learnedTakeaway: { type: String },
       struggledWith: { type: String },
