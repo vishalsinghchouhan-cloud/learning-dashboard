@@ -63,6 +63,7 @@ export async function POST(req: Request) {
       roadmapId: body.roadmapId,
       topicId: body.topicId,
       subtopicTitle: body.subtopicTitle || undefined,
+      notes: body.notes || undefined,
       durationMinutes: Number(body.durationMinutes),
       date: body.date ? new Date(body.date) : new Date(),
     });

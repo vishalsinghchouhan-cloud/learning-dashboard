@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, ExternalLink, Video, FileText, BookOpen, File } from "lucide-react";
+import {
+  Plus,
+  ExternalLink,
+  Video,
+  FileText,
+  BookOpen,
+  File,
+  PlayCircle,
+  Globe,
+} from "lucide-react";
+import { Spinner } from "@/components/ui/Loader";
 
 interface ResourceSectionProps {
   topicId: string;
@@ -16,10 +26,48 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   Docs: <BookOpen className="w-4 h-4 text-emerald-400" />,
 };
 
-// Helper: Extract YouTube thumbnail URL without needing an API key
+function extractYoutubeId(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl.trim());
+    const host = parsed.hostname.replace(/^(www\.|m\.)/, "");
+
+    if (host === "youtu.be") {
+      const id = parsed.pathname.split("/").filter(Boolean).at(0);
+      return id && /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+    }
+
+    if (host === "youtube.com") {
+      // Standard ?v=VIDEO_ID
+      const vParam = parsed.searchParams.get("v");
+      if (vParam && /^[a-zA-Z0-9_-]{11}$/.test(vParam)) return vParam;
+
+      // /shorts/ID, /embed/ID, /live/ID
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2 && ["shorts", "embed", "live", "v"].includes(parts.at(0) || "")) {
+        const id = parts.at(1);
+        return id && /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+      }
+    }
+  } catch {
+    // Fallback regex if URL constructor fails
+  }
+
+  const fallback = rawUrl.match(/([a-zA-Z0-9_-]{11})/);
+  return fallback?.at(1) ?? null;
+}
+
+
 function getYoutubeThumbnail(url: string): string | null {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([^&?/]+)/);
-  return match ? `https://youtube.com{match}/mqdefault.jpg` : null;
+  const videoId = extractYoutubeId(url);
+  return videoId ? `/api/youtube-thumb?v=${videoId}` : null;
+}
+
+function getDomainLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "External Link";
+  }
 }
 
 export default function ResourceSection({ topicId, resources, onAdded }: ResourceSectionProps) {
@@ -27,6 +75,14 @@ export default function ResourceSection({ topicId, resources, onAdded }: Resourc
   const [url, setUrl] = useState("");
   const [type, setType] = useState<"Video" | "Article" | "PDF" | "Docs">("Article");
   const [saving, setSaving] = useState(false);
+  const [failedThumbs, setFailedThumbs] = useState<Record<string, boolean>>({});
+
+  const handleUrlChange = (newUrl: string) => {
+    setUrl(newUrl);
+    if (extractYoutubeId(newUrl)) {
+      setType("Video");
+    }
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +116,7 @@ export default function ResourceSection({ topicId, resources, onAdded }: Resourc
         <input
           type="text"
           required
+          disabled={saving}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Resource title (e.g., Official Docs)"
@@ -68,12 +125,14 @@ export default function ResourceSection({ topicId, resources, onAdded }: Resourc
         <input
           type="url"
           required
+          disabled={saving}
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={(e) => handleUrlChange(e.target.value)}
           placeholder="https://..."
           className="sm:col-span-4 rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-sm text-white"
         />
         <select
+          disabled={saving}
           value={type}
           onChange={(e) => setType(e.target.value as any)}
           className="sm:col-span-2 rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-sm text-white"
@@ -86,9 +145,15 @@ export default function ResourceSection({ topicId, resources, onAdded }: Resourc
         <button
           type="submit"
           disabled={saving}
-          className="sm:col-span-2 inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold text-white py-2 cursor-pointer"
+          className="sm:col-span-2 inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold text-white py-2 cursor-pointer disabled:opacity-50"
         >
-          <Plus className="w-4 h-4" /> Add
+          {saving ? (
+            <Spinner label="Adding..." size="xs" />
+          ) : (
+            <>
+              <Plus className="w-4 h-4" /> Add
+            </>
+          )}
         </button>
       </form>
 
@@ -99,7 +164,9 @@ export default function ResourceSection({ topicId, resources, onAdded }: Resourc
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {resources.map((res) => {
-            const thumb = res.type === "Video" ? getYoutubeThumbnail(res.url) : null;
+            const thumb = !failedThumbs[res._id] ? getYoutubeThumbnail(res.url) : null;
+            const domain = getDomainLabel(res.url);
+
             return (
               <a
                 key={res._id}
@@ -108,9 +175,32 @@ export default function ResourceSection({ topicId, resources, onAdded }: Resourc
                 rel="noopener noreferrer"
                 className="group bg-slate-950 border border-slate-800 hover:border-indigo-500/50 rounded-xl overflow-hidden flex flex-col justify-between transition"
               >
-                {thumb && (
-                  <img src={thumb} alt={res.title} className="w-full h-32 object-cover" />
-                )}
+                                {thumb ? (
+                  <div className="relative">
+                    <img
+                      src={thumb}
+                      alt={res.title}
+                      onError={() =>
+                        setFailedThumbs((prev) => ({ ...prev, [res._id]: true }))
+                      }
+                      className="w-full h-36 object-cover"
+                    />
+                    <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-medium px-2 py-0.5 rounded flex items-center gap-1">
+                      <PlayCircle className="w-3 h-3 text-rose-500" /> YouTube
+                    </span>
+                  </div>
+                ) : res.type === "Video" ? (
+                  <div className="h-36 w-full bg-gradient-to-br from-rose-950/70 via-slate-900 to-slate-950 flex flex-col items-center justify-center gap-2 border-b border-slate-800/80 px-4 text-center">
+                    <div className="p-2.5 rounded-full bg-rose-500/15 border border-rose-500/30 group-hover:scale-110 transition-transform">
+                      <PlayCircle className="w-7 h-7 text-rose-400" />
+                    </div>
+                    <span className="text-[11px] font-medium text-slate-300">
+                      Watch on {domain}
+                    </span>
+                  </div>
+                ) : null}
+
+
                 <div className="p-4 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     {TYPE_ICONS[res.type] || TYPE_ICONS.Article}
@@ -118,7 +208,12 @@ export default function ResourceSection({ topicId, resources, onAdded }: Resourc
                       <p className="text-sm font-medium text-slate-200 group-hover:text-indigo-300 truncate">
                         {res.title}
                       </p>
-                      <p className="text-[11px] text-slate-500">{res.type}</p>
+                      <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                        <span>{res.type}</span>
+                        <span>&bull;</span>
+                        <Globe className="w-2.5 h-2.5 inline shrink-0" />
+                        <span className="truncate">{domain}</span>
+                      </p>
                     </div>
                   </div>
                   <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-white shrink-0" />

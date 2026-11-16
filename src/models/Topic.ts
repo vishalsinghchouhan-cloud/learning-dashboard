@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface ISubtopic {
   _id?: mongoose.Types.ObjectId;
   title: string;
+  estimatedHours?: number;
   isCompleted: boolean;
   subtopics?: ISubtopic[]; // Recursive nesting!
 }
@@ -25,6 +26,7 @@ export interface ITopic extends Document {
 // 1. Define the Subtopic schema first
 const SubtopicSchema = new Schema<ISubtopic>({
   title: { type: String, required: true },
+  estimatedHours: { type: Number, default: 1 },
   isCompleted: { type: Boolean, default: false },
 });
 

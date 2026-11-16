@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Upload, AlertCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Upload, AlertCircle, Calendar, Clock } from "lucide-react";
 
 interface ImportJsonModalProps {
   onClose: () => void;
@@ -13,12 +13,18 @@ export default function ImportJsonModal({ onClose, onSuccess }: ImportJsonModalP
   const [parsedJson, setParsedJson] = useState<any>(null);
   const [weeklyStudyTargetHours, setWeeklyStudyTargetHours] = useState(10);
   const [targetFinishDate, setTargetFinishDate] = useState("");
+  const [todayStr, setTodayStr] = useState("");
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
 
+   useEffect(() => {
+    setTodayStr(new Date().toISOString().split("T").at(0) || "");
+  }, []);
+
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError("");
-    const file = e.target.files?.[0];
+    const file = e.target.files?.item(0);
     if (!file) return;
 
     setFileName(file.name);
@@ -41,19 +47,25 @@ export default function ImportJsonModal({ onClose, onSuccess }: ImportJsonModalP
       setError("Please select a valid JSON file first.");
       return;
     }
+    if (!targetFinishDate) {
+      setError("Please select a Target Finish Date.");
+      return;
+    }
 
     setImporting(true);
     setError("");
 
     try {
+      const clampedWeekly = Math.min(168, Math.max(1, Number(weeklyStudyTargetHours) || 10));
+
       const res = await fetch("/api/roadmaps/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jsonData: parsedJson,
           fileName,
-          weeklyStudyTargetHours: Number(weeklyStudyTargetHours),
-          targetFinishDate: targetFinishDate || undefined,
+          weeklyStudyTargetHours: clampedWeekly,
+          targetFinishDate,
         }),
       });
 
@@ -73,23 +85,25 @@ export default function ImportJsonModal({ onClose, onSuccess }: ImportJsonModalP
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
       <form
         onSubmit={handleImport}
-        className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4"
+        className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl"
       >
-        <h3 className="text-lg font-semibold text-white">Smart JSON Roadmap Import</h3>
-        <p className="text-xs text-slate-400">
-          Upload any <code className="text-indigo-300">roadmap.sh</code> JSON or nested topic tree.
-          Difficulty levels and estimated hours are assigned automatically.
-        </p>
+        <header>
+          <h3 className="text-lg font-bold text-white">Smart JSON Roadmap Import</h3>
+          <p className="text-xs text-slate-400 mt-1">
+            Upload any <code className="text-indigo-300">roadmap.sh</code> JSON or nested topic tree.
+            Difficulty levels and estimated hours are assigned automatically.
+          </p>
+        </header>
 
         <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-xl p-6 cursor-pointer transition bg-slate-950">
           <Upload className="w-7 h-7 text-indigo-400 mb-2" />
           <span className="text-sm font-medium text-slate-200">
             {fileName || "Click to choose a .json file"}
           </span>
-          <span className="text-xs text-slate-500 mt-1">Supports roadmap.sh & generic trees</span>
+          <span className="text-xs text-slate-500 mt-1">Supports roadmap.sh &amp; generic trees</span>
           <input type="file" accept=".json" onChange={handleFileChange} className="hidden" />
         </label>
 
@@ -100,30 +114,43 @@ export default function ImportJsonModal({ onClose, onSuccess }: ImportJsonModalP
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block text-xs text-slate-400">
-            Weekly Target (Hours)
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="block text-xs font-medium text-slate-300">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-indigo-400" />
+              Weekly Target (Max 168h) <span className="text-rose-400">*</span>
+            </span>
             <input
               type="number"
               min={1}
+              max={168}
+              required
               value={weeklyStudyTargetHours}
-              onChange={(e) => setWeeklyStudyTargetHours(Number(e.target.value))}
-              className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm text-white"
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setWeeklyStudyTargetHours(val > 168 ? 168 : val);
+              }}
+              className="mt-1.5 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
             />
           </label>
 
-          <label className="block text-xs text-slate-400">
-            Target Finish Date
+          <label className="block text-xs font-medium text-slate-300">
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+              Target Finish Date <span className="text-rose-400">*</span>
+            </span>
             <input
               type="date"
+              required
+              min={todayStr}
               value={targetFinishDate}
               onChange={(e) => setTargetFinishDate(e.target.value)}
-              className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm text-white"
+              className="mt-1.5 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
             />
           </label>
         </div>
 
-        <div className="flex justify-end gap-3 pt-2">
+        <footer className="flex justify-end gap-3 pt-2">
           <button
             type="button"
             onClick={onClose}
@@ -138,7 +165,7 @@ export default function ImportJsonModal({ onClose, onSuccess }: ImportJsonModalP
           >
             {importing ? "Importing..." : "Import Roadmap"}
           </button>
-        </div>
+        </footer>
       </form>
     </div>
   );

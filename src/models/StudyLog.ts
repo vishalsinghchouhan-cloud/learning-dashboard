@@ -6,6 +6,7 @@ export interface IStudyLog extends Document {
   subtopicTitle?: string;
   durationMinutes: number;
   date: Date;
+  notes?: string;
 }
 
 const StudyLogSchema = new Schema<IStudyLog>(
@@ -15,6 +16,7 @@ const StudyLogSchema = new Schema<IStudyLog>(
     subtopicTitle: { type: String },
     durationMinutes: { type: Number, required: true },
     date: { type: Date, default: Date.now },
+    notes: { type: String },
   },
   { timestamps: true }
 );

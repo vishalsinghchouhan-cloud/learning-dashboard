@@ -51,40 +51,56 @@ export default function FlashcardDeck({ topicTitle, flashcards }: FlashcardDeckP
             <div
               key={card._id}
               onClick={() => toggleFlip(card._id)}
-              className={`rounded-xl p-4 border transition cursor-pointer flex flex-col justify-between min-h-38.75 ${
-                isFlipped
-                  ? "bg-emerald-950/20 border-emerald-500/40"
-                  : "bg-slate-950 border-slate-800 hover:border-purple-500/40"
-              }`}
+              className="relative h-48 w-full cursor-pointer perspective-[1000px]"
             >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
-                      isFlipped
-                        ? "bg-emerald-500/15 text-emerald-300"
-                        : "bg-purple-500/15 text-purple-300"
-                    }`}
-                  >
-                    {isFlipped ? "Answer / Note" : "Question Prompt"}
-                  </span>
+              <div
+                className={`relative h-full w-full transition-transform duration-500 transform-3d ${
+                  isFlipped ? "transform-[rotateY(180deg)]" : ""
+                }`}
+              >
+                {/* FRONT FACE */}
+                <div className="absolute inset-0 rounded-xl p-4 bg-slate-950 border border-slate-800 hover:border-purple-500/40 flex flex-col justify-between backface-hidden">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/15 text-purple-300">
+                        Question Prompt
+                      </span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badge.style}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-100 leading-snug pt-1 line-clamp-3">
+                      {card.frontQuestion}
+                    </p>
+                  </div>
 
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badge.style}`}>
-                    {badge.label}
-                  </span>
+                  <footer className="pt-2 border-t border-slate-800/70 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Interval: {card.intervalDays}d</span>
+                    <span className="inline-flex items-center gap-1 text-purple-300">
+                      <RotateCw className="w-3 h-3" /> Flip
+                    </span>
+                  </footer>
                 </div>
 
-                <p className="text-sm text-slate-100 leading-snug pt-1">
-                  {isFlipped ? card.backAnswer : card.frontQuestion}
-                </p>
-              </div>
+                {/* BACK FACE */}
+                <div className="absolute inset-0 rounded-xl p-4 bg-emerald-950/25 border border-emerald-500/40 flex flex-col justify-between transform-[rotateY(180deg)] backface-hidden">
+                  <div className="space-y-2 overflow-y-auto">
+                    <span className="inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">
+                      Answer / Note
+                    </span>
+                    <p className="text-sm text-slate-100 leading-snug pt-1">
+                      {card.backAnswer}
+                    </p>
+                  </div>
 
-              <footer className="pt-3 mt-3 border-t border-slate-800/70 flex items-center justify-between text-[11px] text-slate-500">
-                <span>Interval: {card.intervalDays}d</span>
-                <span className="inline-flex items-center gap-1 text-slate-400">
-                  <RotateCw className="w-3 h-3" /> Flip
-                </span>
-              </footer>
+                  <footer className="pt-2 border-t border-emerald-500/20 flex items-center justify-between text-[11px] text-emerald-300">
+                    <span>Interval: {card.intervalDays}d</span>
+                    <span className="inline-flex items-center gap-1">
+                      <RotateCw className="w-3 h-3" /> Flip Back
+                    </span>
+                  </footer>
+                </div>
+              </div>
             </div>
           );
         })}

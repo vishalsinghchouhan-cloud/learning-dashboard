@@ -33,3 +33,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await connectDB();
+    const { id } = await params;
+    await Topic.findByIdAndDelete(id);
+    return NextResponse.json({ message: "Topic deleted" });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

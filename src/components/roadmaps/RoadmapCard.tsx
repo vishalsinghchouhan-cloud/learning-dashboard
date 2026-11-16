@@ -7,11 +7,37 @@ interface RoadmapCardProps {
   topics: any[];
 }
 
+// Helper: Recursively count total & completed nested subtopics
+function countNestedSubtopics(list: any[] = []): { total: number; done: number } {
+  let total = 0;
+  let done = 0;
+
+  for (const item of list) {
+    total += 1;
+    if (item.isCompleted) done += 1;
+    if (item.subtopics && item.subtopics.length > 0) {
+      const child = countNestedSubtopics(item.subtopics);
+      total += child.total;
+      done += child.done;
+    }
+  }
+  return { total, done };
+}
+
 export default function RoadmapCard({ roadmap, topics }: RoadmapCardProps) {
   const roadmapTopics = topics.filter((t) => t.roadmapId === roadmap._id);
-  const completedCount = roadmapTopics.filter((t) => t.status === "Completed").length;
-  const totalCount = roadmapTopics.length;
-  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const completedTopics = roadmapTopics.filter((t) => t.status === "Completed").length;
+  const totalTopics = roadmapTopics.length;
+
+  // Calculate weighted progress combining subtopic checkboxes + completed topics
+  const progressSum = roadmapTopics.reduce((acc, topic) => {
+    if (topic.status === "Completed") return acc + 1;
+    const { total, done } = countNestedSubtopics(topic.subtopics || []);
+    return acc + (total > 0 ? done / total : 0);
+  }, 0);
+
+  const progressPercent =
+    totalTopics > 0 ? Math.round((progressSum / totalTopics) * 100) : 0;
 
   const isJson = roadmap.source === "json_import";
 
@@ -31,7 +57,7 @@ export default function RoadmapCard({ roadmap, topics }: RoadmapCardProps) {
           </span>
 
           <span className="text-xs text-slate-400">
-            {completedCount}/{totalCount} Topics
+            {completedTopics}/{totalTopics} Topics Done
           </span>
         </div>
 
@@ -42,12 +68,12 @@ export default function RoadmapCard({ roadmap, topics }: RoadmapCardProps) {
 
         <div className="pt-2">
           <div className="flex justify-between text-xs text-slate-400 mb-1">
-            <span>Progress</span>
-            <span>{progressPercent}%</span>
+            <span>Overall Progress</span>
+            <span className="text-indigo-300 font-semibold">{progressPercent}%</span>
           </div>
           <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
             <div
-              className="h-full bg-indigo-500 transition-all duration-300"
+              className="h-full bg-linear-to-r from-indigo-500 to-emerald-400 transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>

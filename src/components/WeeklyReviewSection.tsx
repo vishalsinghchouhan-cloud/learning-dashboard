@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Calendar } from "lucide-react";
+import { Spinner } from "@/components/ui/Loader";
 
 interface WeeklyReviewProps {
   recentTopicsStudied: string[];
@@ -18,29 +19,35 @@ export default function WeeklyReviewSection({
 }: WeeklyReviewProps) {
   const [keyLearnings, setKeyLearnings] = useState("");
   const [biggestStruggle, setBiggestStruggle] = useState("");
+  const [saving, setSaving] = useState(false);
   const [reviewSaved, setReviewSaved] = useState(false);
 
   const handleSaveWeeklyReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyLearnings.trim() || !biggestStruggle.trim()) return;
+    setSaving(true);
 
-    await fetch("/api/performance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        entryType: "review",
-        weekStartDate,
-        topicsCovered: recentTopicsStudied,
-        keyLearnings,
-        biggestStruggle,
-      }),
-    });
+    try {
+      await fetch("/api/performance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entryType: "review",
+          weekStartDate,
+          topicsCovered: recentTopicsStudied,
+          keyLearnings,
+          biggestStruggle,
+        }),
+      });
 
-    setKeyLearnings("");
-    setBiggestStruggle("");
-    setReviewSaved(true);
-    setTimeout(() => setReviewSaved(false), 3000);
-    onSaved();
+      setKeyLearnings("");
+      setBiggestStruggle("");
+      setReviewSaved(true);
+      setTimeout(() => setReviewSaved(false), 3000);
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -83,10 +90,11 @@ export default function WeeklyReviewSection({
           <textarea
             rows={2}
             required
+            disabled={saving}
             value={keyLearnings}
             onChange={(e) => setKeyLearnings(e.target.value)}
             placeholder="e.g., Understood MongoDB aggregation and Next.js App Router..."
-            className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50"
           />
         </label>
 
@@ -95,18 +103,20 @@ export default function WeeklyReviewSection({
           <textarea
             rows={2}
             required
+            disabled={saving}
             value={biggestStruggle}
             onChange={(e) => setBiggestStruggle(e.target.value)}
             placeholder="e.g., Recursive TypeScript types and CSS Grid alignment..."
-            className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50"
           />
         </label>
 
         <button
           type="submit"
-          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold transition cursor-pointer"
+          disabled={saving}
+          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold transition cursor-pointer disabled:opacity-50"
         >
-          Save Weekly Reflection
+          {saving ? <Spinner label="Saving Reflection..." /> : "Save Weekly Reflection"}
         </button>
       </form>
 

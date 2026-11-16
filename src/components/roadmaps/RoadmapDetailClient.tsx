@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import TopicItemCard from "./TopicItemCard";
 import AddTopicModal from "./AddTopicModal";
+import { Pencil } from "lucide-react";
+import EditRoadmapModal from "./EditRoadmapModal";
 
 const DIFFICULTIES = ["All", "Beginner", "Intermediate", "Advanced"] as const;
 
@@ -15,6 +17,7 @@ export default function RoadmapDetailClient({ id }: { id: string }) {
   const [filter, setFilter] = useState<string>("All");
   const [showAddTopic, setShowAddTopic] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showEditRoadmap, setShowEditRoadmap] = useState(false);
 
   const loadRoadmapDetails = async () => {
     try {
@@ -75,12 +78,23 @@ export default function RoadmapDetailClient({ id }: { id: string }) {
             )}
           </div>
 
-          <button
-            onClick={() => setShowAddTopic(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Add Topic
-          </button>
+          <div className="flex items-center gap-2.5">
+            {roadmap && (
+              <button
+                onClick={() => setShowEditRoadmap(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm font-medium text-slate-200 cursor-pointer"
+              >
+                <Pencil className="w-4 h-4" /> Edit Roadmap
+              </button>
+            )}
+            <button
+              onClick={() => setShowAddTopic(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Add Topic
+            </button>
+          </div>
+
         </header>
 
         <div className="flex flex-wrap gap-2">
@@ -88,11 +102,10 @@ export default function RoadmapDetailClient({ id }: { id: string }) {
             <button
               key={level}
               onClick={() => setFilter(level)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                filter === level
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${filter === level
                   ? "bg-indigo-600 text-white"
                   : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
-              }`}
+                }`}
             >
               {level}
             </button>
@@ -124,6 +137,12 @@ export default function RoadmapDetailClient({ id }: { id: string }) {
           onSuccess={loadRoadmapDetails}
         />
       )}
+      {showEditRoadmap && roadmap && 
+      <EditRoadmapModal 
+        roadmap={roadmap} 
+        onClose={() => setShowEditRoadmap(false)} 
+        onSuccess={loadRoadmapDetails} 
+      />}
     </div>
   );
 }

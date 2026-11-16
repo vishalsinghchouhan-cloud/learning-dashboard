@@ -2,8 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Clock, CheckCircle2, FolderOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, CheckCircle2, FolderOpen, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import NestedSubtopicList from "./NestedSubtopicList";
+import EditTopicModal from "./EditTopicModal";
+import CompleteTopicModal from "./CompleteTopicModal";
+import { ActionOverlay } from "@/components/ui/Loader";
 
 interface TopicItemCardProps {
   topic: any;
@@ -19,14 +22,13 @@ const BADGE_STYLES: Record<string, string> = {
 
 export default function TopicItemCard({ topic, loggedMinutes, onUpdated }: TopicItemCardProps) {
   const [expanded, setExpanded] = useState(true);
-  const [showReflectionForm, setShowReflectionForm] = useState(false);
-  const [learnedTakeaway, setLearnedTakeaway] = useState("");
-  const [struggledWith, setStruggledWith] = useState("");
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showEditTopic, setShowEditTopic] = useState(false);
+  const [busyLabel, setBusyLabel] = useState<string | null>(null);
 
   const consumedHours = +(loggedMinutes / 60).toFixed(1);
   const isCompleted = topic.status === "Completed";
 
-  // Helper: Immutably toggle a nested subtopic at a given index path
   const toggleAtPath = (list: any[], path: number[]): any[] => {
     const [head, ...rest] = path;
     return list.map((item, idx) => {
@@ -37,34 +39,28 @@ export default function TopicItemCard({ topic, loggedMinutes, onUpdated }: Topic
   };
 
   const handleToggleSubtopic = async (path: number[]) => {
-    const updatedSubtopics = toggleAtPath(topic.subtopics || [], path);
-    await fetch(`/api/topics/${topic._id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        subtopics: updatedSubtopics,
-        status: topic.status === "Not Started" ? "In Progress" : topic.status,
-      }),
-    });
-    onUpdated();
-  };
-
-  const handleCompleteTopic = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await fetch(`/api/topics/${topic._id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: "Completed",
-        reflection: { learnedTakeaway, struggledWith },
-      }),
-    });
-    setShowReflectionForm(false);
-    onUpdated();
+    if (isCompleted) return;
+    setBusyLabel("Updating subtopic...");
+    try {
+      const updatedSubtopics = toggleAtPath(topic.subtopics || [], path);
+      await fetch(`/api/topics/${topic._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subtopics: updatedSubtopics,
+          status: topic.status === "Not Started" ? "In Progress" : topic.status,
+        }),
+      });
+      onUpdated();
+    } finally {
+      setBusyLabel(null);
+    }
   };
 
   return (
-    <article className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+    <article className="relative bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+      {busyLabel && <ActionOverlay label={busyLabel} />}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <button
@@ -88,16 +84,24 @@ export default function TopicItemCard({ topic, loggedMinutes, onUpdated }: Topic
           </span>
         </div>
 
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center gap-2.5 text-xs flex-wrap">
           <span className="inline-flex items-center gap-1.5 text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
             <Clock className="w-3.5 h-3.5 text-indigo-400" />
             {consumedHours}h / {topic.estimatedHours}h
           </span>
 
+          <button
+            type="button"
+            onClick={() => setShowEditTopic(true)}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium cursor-pointer"
+          >
+            <Pencil className="w-3.5 h-3.5" /> Edit
+          </button>
+
           {!isCompleted ? (
             <button
               type="button"
-              onClick={() => setShowReflectionForm(!showReflectionForm)}
+              onClick={() => setShowCompleteModal(true)}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 font-medium cursor-pointer"
             >
               <CheckCircle2 className="w-3.5 h-3.5" /> Mark Done
@@ -117,54 +121,31 @@ export default function TopicItemCard({ topic, loggedMinutes, onUpdated }: Topic
         </div>
       </div>
 
-      {/* Topic Completion Reflection Prompt */}
-      {showReflectionForm && (
-        <form
-          onSubmit={handleCompleteTopic}
-          className="bg-slate-950 border border-emerald-500/30 rounded-xl p-4 space-y-3"
-        >
-          <p className="text-xs font-semibold text-emerald-300">
-            Topic Wrap-Up Reflection (Before Marking Complete)
-          </p>
-          <input
-            type="text"
-            required
-            value={learnedTakeaway}
-            onChange={(e) => setLearnedTakeaway(e.target.value)}
-            placeholder="Key takeaway you learned in this topic..."
-            className="w-full rounded-lg bg-slate-900 border border-slate-800 p-2 text-xs text-white"
-          />
-          <input
-            type="text"
-            required
-            value={struggledWith}
-            onChange={(e) => setStruggledWith(e.target.value)}
-            placeholder="What did you struggle with most?"
-            className="w-full rounded-lg bg-slate-900 border border-slate-800 p-2 text-xs text-white"
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowReflectionForm(false)}
-              className="px-3 py-1.5 rounded bg-slate-800 text-xs text-white cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white cursor-pointer"
-            >
-              Complete Topic
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Nested Subtopics Tree */}
       {expanded && topic.subtopics?.length > 0 && (
         <div className="pt-2 border-t border-slate-800/70">
-          <NestedSubtopicList subtopics={topic.subtopics} onToggle={handleToggleSubtopic} />
+          <NestedSubtopicList
+            subtopics={topic.subtopics}
+            onToggle={handleToggleSubtopic}
+            disabled={isCompleted}
+          />
         </div>
+      )}
+
+      {showCompleteModal && (
+        <CompleteTopicModal
+          topic={topic}
+          alreadyLoggedMinutes={loggedMinutes}
+          onClose={() => setShowCompleteModal(false)}
+          onSuccess={onUpdated}
+        />
+      )}
+
+      {showEditTopic && (
+        <EditTopicModal
+          topic={topic}
+          onClose={() => setShowEditTopic(false)}
+          onSuccess={onUpdated}
+        />
       )}
     </article>
   );

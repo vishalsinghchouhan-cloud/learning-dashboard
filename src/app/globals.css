@@ -24,3 +24,34 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+/* Custom Sleek Dark Scrollbar for Overall UI/UX */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #020617; /* thumb (slate-700) | track (slate-950) */
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617; /* slate-950 */
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155; /* slate-700 */
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6366f1; /* indigo-500 accent on hover */
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
