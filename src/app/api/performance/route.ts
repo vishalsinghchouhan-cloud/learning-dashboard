@@ -1,21 +1,32 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { QuizScore, WeeklyReview } from "@/models/Performance";
+import { getPaginationParams, paginateQuery } from "@/lib/paginate";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await connectDB();
-    const scores = await QuizScore.find()
-      .populate("topicId", "title")
-      .populate("roadmapId", "title")
-      .sort({ date: 1 });
-    const reviews = await WeeklyReview.find().sort({ weekStartDate: -1 }).limit(10);
+    const { searchParams } = new URL(req.url);
+    const reviewPage = parseInt(searchParams.get("reviewPage") || "1", 10);
+    const reviewLimit = parseInt(searchParams.get("reviewLimit") || "5", 10);
+    const skip = (Math.max(1, reviewPage) - 1) * reviewLimit;
 
-    return NextResponse.json({ scores, reviews });
+    const [scores, reviews, totalReviews] = await Promise.all([
+      QuizScore.find().populate("topicId", "title").populate("roadmapId", "title").sort({ date: 1 }),
+      WeeklyReview.find().sort({ weekStartDate: -1 }).skip(skip).limit(reviewLimit),
+      WeeklyReview.countDocuments(),
+    ]);
+
+    return NextResponse.json({
+      scores,
+      reviews,
+      hasMoreReviews: skip + reviews.length < totalReviews,
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
 export async function POST(req: Request) {
   try {

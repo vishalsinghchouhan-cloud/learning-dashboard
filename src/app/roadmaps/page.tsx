@@ -2,38 +2,45 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Upload, BookOpen } from "lucide-react";
+import { ArrowLeft, Plus, Upload, BookOpen, Search } from "lucide-react";
 import RoadmapCard from "@/components/roadmaps/RoadmapCard";
 import CreateRoadmapModal from "@/components/roadmaps/CreateRoadmapModal";
 import ImportJsonModal from "@/components/roadmaps/ImportJsonModal";
+import InfiniteScrollTrigger from "@/components/ui/InfiniteScrollTrigger";
+import { useInfiniteList } from "@/hooks/useInfiniteList";
 
 export default function RoadmapsPage() {
-  const [roadmaps, setRoadmaps] = useState<any[]>([]);
-  const [topics, setTopics] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  const [search, setSearch] = useState("");
+  const [allTopics, setAllTopics] = useState<any[]>([]);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      const [rmRes, topRes] = await Promise.all([
-        fetch("/api/roadmaps"),
-        fetch("/api/topics"),
-      ]);
-      const [rmData, topData] = await Promise.all([rmRes.json(), topRes.json()]);
-      setRoadmaps(Array.isArray(rmData) ? rmData : []);
-      setTopics(Array.isArray(topData) ? topData : []);
-    } catch (err) {
-      console.error("Failed to fetch roadmaps:", err);
-    } finally {
-      setLoading(false);
-    }
+  const {
+    items: roadmaps,
+    loading,
+    loadingMore,
+    hasMore,
+    loadNextPage,
+    refresh,
+  } = useInfiniteList<any>(
+    (p) => `/api/roadmaps?page=${p}&limit=9&search=${encodeURIComponent(search)}`,
+    [search]
+  );
+
+  const fetchTopicsForProgress = async () => {
+    const res = await fetch("/api/topics");
+    const data = await res.json();
+    setAllTopics(Array.isArray(data) ? data : []);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchTopicsForProgress();
   }, []);
+
+  const handleRefreshAll = () => {
+    refresh();
+    fetchTopicsForProgress();
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-10">
@@ -52,7 +59,18 @@ export default function RoadmapsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="relative">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search roadmaps..."
+                className="pl-9 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-800 focus:border-indigo-500 text-sm text-white focus:outline-none"
+              />
+            </label>
+
             <button
               onClick={() => setShowImportModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-sm font-semibold transition cursor-pointer"
@@ -73,32 +91,41 @@ export default function RoadmapsPage() {
         ) : roadmaps.length === 0 ? (
           <div className="bg-slate-900 border border-dashed border-slate-800 rounded-xl p-12 text-center space-y-3">
             <BookOpen className="w-10 h-10 text-indigo-400 mx-auto" />
-            <h2 className="text-lg font-semibold">No roadmaps yet</h2>
+            <h2 className="text-lg font-semibold">No roadmaps found</h2>
             <p className="text-sm text-slate-400 max-w-md mx-auto">
-              Start by creating a custom roadmap or uploading a JSON file (like from roadmap.sh) to
-              auto-populate your topics and subtopics.
+              {search
+                ? "Try clearing your search filter."
+                : "Start by creating a custom roadmap or uploading a JSON file."}
             </p>
           </div>
         ) : (
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {roadmaps.map((roadmap) => (
-              <RoadmapCard key={roadmap._id} roadmap={roadmap} topics={topics} />
-            ))}
-          </section>
+          <>
+            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {roadmaps.map((roadmap) => (
+                <RoadmapCard key={roadmap._id} roadmap={roadmap} topics={allTopics} />
+              ))}
+            </section>
+
+            <InfiniteScrollTrigger
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              onLoadMore={loadNextPage}
+            />
+          </>
         )}
       </main>
 
       {showManualModal && (
         <CreateRoadmapModal
           onClose={() => setShowManualModal(false)}
-          onSuccess={fetchData}
+          onSuccess={handleRefreshAll}
         />
       )}
 
       {showImportModal && (
         <ImportJsonModal
           onClose={() => setShowImportModal(false)}
-          onSuccess={fetchData}
+          onSuccess={handleRefreshAll}
         />
       )}
     </div>

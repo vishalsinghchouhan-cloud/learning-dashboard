@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { Flashcard } from "@/models/KnowledgeHub";
 import "@/models/Topic";
 import "@/models/Roadmap";
+import { getPaginationParams, paginateQuery } from "@/lib/paginate";
 
 export async function GET(req: Request) {
   try {
@@ -15,22 +16,29 @@ export async function GET(req: Request) {
     if (topicId) filter.topicId = topicId;
     if (dueOnly) filter.nextReviewDate = { $lte: new Date() };
 
-    const cards = await Flashcard.find(filter)
-      .populate({
-        path: "topicId",
-        select: "title roadmapId",
-        populate: {
-          path: "roadmapId",
-          select: "title",
-        },
-      })
-      .sort({ nextReviewDate: 1 });
+    const populateConfig = {
+      path: "topicId",
+      select: "title roadmapId",
+      populate: { path: "roadmapId", select: "title" },
+    };
 
+    const pagination = getPaginationParams(req.url, 9);
+    if (pagination) {
+      const result = await paginateQuery(Flashcard, filter, {
+        ...pagination,
+        sort: { nextReviewDate: 1 },
+        populate: populateConfig,
+      });
+      return NextResponse.json(result);
+    }
+
+    const cards = await Flashcard.find(filter).populate(populateConfig).sort({ nextReviewDate: 1 });
     return NextResponse.json(cards);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
 export async function POST(req: Request) {
   try {

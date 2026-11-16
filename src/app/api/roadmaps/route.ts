@@ -3,11 +3,25 @@ import { connectDB } from "@/lib/db";
 import Roadmap from "@/models/Roadmap";
 import Topic from "@/models/Topic";
 import StudyLog from "@/models/StudyLog";
+import { getPaginationParams, paginateQuery } from "@/lib/paginate";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await connectDB();
-    const roadmaps = await Roadmap.find().sort({ createdAt: -1 });
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get("search")?.trim();
+    const filter: any = search ? { title: { $regex: search, $options: "i" } } : {};
+
+    const pagination = getPaginationParams(req.url, 9);
+    if (pagination) {
+      const result = await paginateQuery(Roadmap, filter, {
+        ...pagination,
+        sort: { createdAt: -1 },
+      });
+      return NextResponse.json(result);
+    }
+
+    const roadmaps = await Roadmap.find(filter).sort({ createdAt: -1 });
     return NextResponse.json(roadmaps);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

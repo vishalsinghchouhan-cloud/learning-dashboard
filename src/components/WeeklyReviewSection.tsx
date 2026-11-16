@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Calendar } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Calendar, ChevronDown } from "lucide-react";
 import { Spinner } from "@/components/ui/Loader";
 
 interface WeeklyReviewProps {
@@ -13,7 +13,7 @@ interface WeeklyReviewProps {
 
 export default function WeeklyReviewSection({
   recentTopicsStudied,
-  reviews,
+  reviews: initialReviews,
   weekStartDate,
   onSaved,
 }: WeeklyReviewProps) {
@@ -21,6 +21,39 @@ export default function WeeklyReviewSection({
   const [biggestStruggle, setBiggestStruggle] = useState("");
   const [saving, setSaving] = useState(false);
   const [reviewSaved, setReviewSaved] = useState(false);
+
+  // Pagination state for past weekly reflections
+  const [allReviews, setAllReviews] = useState<any[]>(initialReviews);
+  const [reviewPage, setReviewPage] = useState(1);
+  const [hasMoreReviews, setHasMoreReviews] = useState(initialReviews.length >= 5);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    setAllReviews(initialReviews);
+    setReviewPage(1);
+    setHasMoreReviews(initialReviews.length >= 5);
+  }, [initialReviews]);
+
+  const handleLoadMoreReviews = async () => {
+    if (loadingMore || !hasMoreReviews) return;
+    setLoadingMore(true);
+
+    try {
+      const nextPage = reviewPage + 1;
+      const res = await fetch(`/api/performance?reviewPage=${nextPage}&reviewLimit=5`);
+      const data = await res.json();
+      const incoming = Array.isArray(data.reviews) ? data.reviews : [];
+
+      setAllReviews((prev) => {
+        const existingIds = new Set(prev.map((r) => r._id));
+        return [...prev, ...incoming.filter((r: any) => !existingIds.has(r._id))];
+      });
+      setReviewPage(nextPage);
+      setHasMoreReviews(Boolean(data.hasMoreReviews));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleSaveWeeklyReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +90,7 @@ export default function WeeklyReviewSection({
         className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4"
       >
         <header className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2 text-white">
             <Calendar className="w-5 h-5 text-emerald-400" /> Weekly Review Prompt
           </h2>
           {reviewSaved && (
@@ -94,7 +127,7 @@ export default function WeeklyReviewSection({
             value={keyLearnings}
             onChange={(e) => setKeyLearnings(e.target.value)}
             placeholder="e.g., Understood MongoDB aggregation and Next.js App Router..."
-            className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+            className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
           />
         </label>
 
@@ -107,46 +140,65 @@ export default function WeeklyReviewSection({
             value={biggestStruggle}
             onChange={(e) => setBiggestStruggle(e.target.value)}
             placeholder="e.g., Recursive TypeScript types and CSS Grid alignment..."
-            className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+            className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
           />
         </label>
 
         <button
           type="submit"
           disabled={saving}
-          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold transition cursor-pointer disabled:opacity-50"
+          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold text-white transition cursor-pointer disabled:opacity-50"
         >
           {saving ? <Spinner label="Saving Reflection..." /> : "Save Weekly Reflection"}
         </button>
       </form>
 
-      <article className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h2 className="text-lg font-semibold">Recent Weekly Reflections</h2>
-        {reviews.length === 0 ? (
-          <p className="text-sm text-slate-400">
-            Your saved weekly reviews will appear here so you can track your growth over time.
-          </p>
-        ) : (
-          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-            {reviews.map((rev: any) => (
-              <div
-                key={rev._id}
-                className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2"
-              >
-                <p className="text-xs text-slate-400">
-                  Week of {new Date(rev.weekStartDate).toLocaleDateString()}
-                </p>
-                <p className="text-sm">
-                  <span className="text-emerald-400 font-medium">Learned: </span>
-                  {rev.keyLearnings}
-                </p>
-                <p className="text-sm">
-                  <span className="text-amber-400 font-medium">Struggled: </span>
-                  {rev.biggestStruggle}
-                </p>
-              </div>
-            ))}
-          </div>
+      <article className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between space-y-4">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-white">Recent Weekly Reflections</h2>
+          {allReviews.length === 0 ? (
+            <p className="text-sm text-slate-400">
+              Your saved weekly reviews will appear here so you can track your growth over time.
+            </p>
+          ) : (
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {allReviews.map((rev: any) => (
+                <div
+                  key={rev._id}
+                  className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2"
+                >
+                  <p className="text-xs text-slate-400">
+                    Week of {new Date(rev.weekStartDate).toLocaleDateString()}
+                  </p>
+                  <p className="text-sm text-slate-200">
+                    <span className="text-emerald-400 font-medium">Learned: </span>
+                    {rev.keyLearnings}
+                  </p>
+                  <p className="text-sm text-slate-200">
+                    <span className="text-amber-400 font-medium">Struggled: </span>
+                    {rev.biggestStruggle}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {hasMoreReviews && (
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={handleLoadMoreReviews}
+            className="w-full py-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs font-medium text-slate-300 flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+          >
+            {loadingMore ? (
+              <Spinner label="Loading older reflections..." size="xs" />
+            ) : (
+              <>
+                <ChevronDown className="w-3.5 h-3.5" /> Load Older Reflections
+              </>
+            )}
+          </button>
         )}
       </article>
     </section>

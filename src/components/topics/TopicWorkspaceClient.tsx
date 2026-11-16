@@ -6,48 +6,47 @@ import { ArrowLeft } from "lucide-react";
 import ResourceSection from "./ResourceSection";
 import FlashcardSection from "./FlashcardSection";
 import QuizScoreSection from "./QuizScoreSection";
+import InfiniteScrollTrigger from "@/components/ui/InfiniteScrollTrigger";
+import { useInfiniteList } from "@/hooks/useInfiniteList";
 
 export default function TopicWorkspaceClient({ id }: { id: string }) {
   const [topic, setTopic] = useState<any>(null);
-  const [resources, setResources] = useState<any[]>([]);
-  const [flashcards, setFlashcards] = useState<any[]>([]);
   const [scores, setScores] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingMeta, setLoadingMeta] = useState(true);
 
-  const loadWorkspace = async () => {
+  const resourcesList = useInfiniteList<any>(
+    (p) => `/api/resources?topicId=${id}&page=${p}&limit=9`,
+    [id]
+  );
+
+  const flashcardsList = useInfiniteList<any>(
+    (p) => `/api/flashcards?topicId=${id}&page=${p}&limit=9`,
+    [id]
+  );
+
+  const loadTopicAndScores = async () => {
     try {
-      const [topRes, resRes, cardRes, perfRes] = await Promise.all([
+      const [topRes, perfRes] = await Promise.all([
         fetch(`/api/topics/${id}`),
-        fetch(`/api/resources?topicId=${id}`),
-        fetch(`/api/flashcards?topicId=${id}`),
         fetch("/api/performance"),
       ]);
-
-      const [topData, resData, cardData, perfData] = await Promise.all([
-        topRes.json(),
-        resRes.json(),
-        cardRes.json(),
-        perfRes.json(),
-      ]);
+      const [topData, perfData] = await Promise.all([topRes.json(), perfRes.json()]);
 
       setTopic(topData);
-      setResources(Array.isArray(resData) ? resData : []);
-      setFlashcards(Array.isArray(cardData) ? cardData : []);
-
       const topicScores = (perfData.scores || []).filter(
         (s: any) => (s.topicId?._id || s.topicId) === id
       );
       setScores(topicScores);
     } finally {
-      setLoading(false);
+      setLoadingMeta(false);
     }
   };
 
   useEffect(() => {
-    if (id) loadWorkspace();
+    if (id) loadTopicAndScores();
   }, [id]);
 
-  if (loading) {
+  if (loadingMeta) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-300 flex items-center justify-center">
         Loading topic workspace...
@@ -85,20 +84,40 @@ export default function TopicWorkspaceClient({ id }: { id: string }) {
           )}
         </header>
 
-        <ResourceSection topicId={id} resources={resources} onAdded={loadWorkspace} />
-        <FlashcardSection
-          topicId={id}
-          topicTitle={topic?.title}
-          initialScratchpad={topic?.scratchpadNotes || ""}
-          flashcards={flashcards}
-          onAdded={loadWorkspace}
-        />
+        <div>
+          <ResourceSection
+            topicId={id}
+            resources={resourcesList.items}
+            onAdded={resourcesList.refresh}
+          />
+          <InfiniteScrollTrigger
+            hasMore={resourcesList.hasMore}
+            loadingMore={resourcesList.loadingMore}
+            onLoadMore={resourcesList.loadNextPage}
+          />
+        </div>
+
+        <div>
+          <FlashcardSection
+            topicId={id}
+            topicTitle={topic?.title}
+            initialScratchpad={topic?.scratchpadNotes || ""}
+            flashcards={flashcardsList.items}
+            onAdded={flashcardsList.refresh}
+          />
+          <InfiniteScrollTrigger
+            hasMore={flashcardsList.hasMore}
+            loadingMore={flashcardsList.loadingMore}
+            onLoadMore={flashcardsList.loadNextPage}
+          />
+        </div>
+
         {topic?.roadmapId && (
           <QuizScoreSection
             roadmapId={topic.roadmapId}
             topicId={id}
             scores={scores}
-            onAdded={loadWorkspace}
+            onAdded={loadTopicAndScores}
           />
         )}
       </main>

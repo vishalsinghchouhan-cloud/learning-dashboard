@@ -1,20 +1,32 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Resource } from "@/models/KnowledgeHub";
+import { getPaginationParams, paginateQuery } from "@/lib/paginate";
 
 export async function GET(req: Request) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
     const topicId = searchParams.get("topicId");
-
     const filter = topicId ? { topicId } : {};
+
+    const pagination = getPaginationParams(req.url, 9);
+    if (pagination) {
+      const result = await paginateQuery(Resource, filter, {
+        ...pagination,
+        sort: { createdAt: -1 },
+        populate: { path: "topicId", select: "title" },
+      });
+      return NextResponse.json(result);
+    }
+
     const resources = await Resource.find(filter).populate("topicId", "title").sort({ createdAt: -1 });
     return NextResponse.json(resources);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
 export async function POST(req: Request) {
   try {

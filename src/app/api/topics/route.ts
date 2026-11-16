@@ -1,20 +1,35 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Topic from "@/models/Topic";
+import { getPaginationParams, paginateQuery } from "@/lib/paginate";
 
 export async function GET(req: Request) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
     const roadmapId = searchParams.get("roadmapId");
+    const difficulty = searchParams.get("difficulty");
 
-    const filter = roadmapId ? { roadmapId } : {};
+    const filter: any = {};
+    if (roadmapId) filter.roadmapId = roadmapId;
+    if (difficulty && difficulty !== "All") filter.difficulty = difficulty;
+
+    const pagination = getPaginationParams(req.url, 10);
+    if (pagination) {
+      const result = await paginateQuery(Topic, filter, {
+        ...pagination,
+        sort: { createdAt: 1 },
+      });
+      return NextResponse.json(result);
+    }
+
     const topics = await Topic.find(filter).sort({ createdAt: 1 });
     return NextResponse.json(topics);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
 export async function POST(req: Request) {
   try {
